@@ -1,0 +1,2519 @@
+openapi: 3.1.0
+info:
+  title: Allstar Partner API
+  version: 2.0 Preview
+  description: |
+    Interface directly with Allstar Gaming to generate highlights for your
+    customers from their favorite videogames in the cloud!
+servers:
+  - url: https://prt.allstar.gg
+    description: Production server
+paths:
+  /user/clip:
+    get:
+      operationId: getClip
+      tags:
+        - User
+      summary: Find a user's specific clip
+      description: |
+        Returns a single clip object by clip identifier and user identifier.  Specify only one user identifier.  If multiple are specified, only one will be used, in this order of preference: userId, steamId, riotID.
+      parameters:
+        - $ref: '#/components/parameters/clipIdentifier'
+        - $ref: '#/components/parameters/optionalUserId'
+        - $ref: '#/components/parameters/optionalSteamId'
+        - $ref: '#/components/parameters/optionalRiotId'
+        - $ref: '#/components/parameters/optionalEpicId'
+        - $ref: '#/components/parameters/onDemand'
+        - $ref: '#/components/parameters/inProgress'
+      responses:
+        '200':
+          description: Single clip object retrieved successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Clip'
+        '404':
+          description: Clip not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/defaultResponse'
+      security:
+        - ApiKeyAuth: []
+  /user/clip/transit:
+    get:
+      operationId: getClipTransitTime
+      tags:
+        - User
+      summary: Get a user's clip transit time
+      description: Returns clip transit time by clip identifier.
+      parameters:
+        - name: clip_identifier
+          in: query
+          description: Use the requestId from the original clip request or trackId from the Clip Submitted webhook event.
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Clip transit time retrieved successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  processed:
+                    type: boolean
+                    description: Indicates whether the clip has been processed.
+                  approxTimeToComplete:
+                    description: Approximate time in milliseconds for the clip to be processed.
+                    type: integer
+                  localKey:
+                    type: string
+                    enum:
+                      - CLIP_IN_TRANSIT
+                      - TRANSIT_TIME_UNKNOWN_CLIP
+                      - TRANSIT_TIME_COMPLETED
+                      - TRANSIT_TIME_CLIP_ERROR
+                      - TRANSIT_TIME_ERROR
+                    description: |
+                      Possible localKey values and their descriptions:
+                      - CLIP_IN_TRANSIT: Clip is currently in transit, use approxTimeToComplete to determine how long until the clip is returned.
+                      - TRANSIT_TIME_UNKNOWN_CLIP: Issue with clip lookup using the provided clip_identifier.
+                      - TRANSIT_TIME_COMPLETED: Clip has been processed.
+                      - TRANSIT_TIME_CLIP_ERROR: Clip processing was unsuccessful.
+                      - TRANSIT_TIME_ERROR: General server-side error for this endpoint.
+                required:
+                  - processed
+                  - approxTimeToComplete
+                  - localKey
+              examples:
+                example1:
+                  value:
+                    processed: false
+                    approxTimeToComplete: 60000
+                    localKey: CLIP_IN_TRANSIT
+        '404':
+          description: Clip not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/4XXResponse'
+      security:
+        - ApiKeyAuth: []
+  /user/clips:
+    get:
+      operationId: getUserClips
+      tags:
+        - User
+      summary: Get a user's clips
+      description: |
+        Returns paginated list of clips by user identifier.  Specify only one user identifier.  If multiple are specified, only one will be used, in this order of preference: userId, steamId, riotID.  You can filter the clips by game and then optionally by game properties (NB: if you don't specify a game parameter, any clip property filtering will be disabled).
+      parameters:
+        - $ref: '#/components/parameters/optionalUserId'
+        - $ref: '#/components/parameters/optionalSteamId'
+        - $ref: '#/components/parameters/optionalRiotId'
+        - $ref: '#/components/parameters/optionalEpicId'
+        - $ref: '#/components/parameters/clipSort'
+        - $ref: '#/components/parameters/onDemand'
+        - $ref: '#/components/parameters/inProgress'
+        - $ref: '#/components/parameters/spectating'
+        - $ref: '#/components/parameters/page'
+        - $ref: '#/components/parameters/limit'
+        - $ref: '#/components/parameters/clipGame'
+        - $ref: '#/components/parameters/minKillCount'
+        - $ref: '#/components/parameters/maxKillCount'
+        - $ref: '#/components/parameters/csMap'
+        - $ref: '#/components/parameters/csWeapon'
+        - $ref: '#/components/parameters/csWeaponCat'
+        - $ref: '#/components/parameters/csSituation'
+        - $ref: '#/components/parameters/csMinHeadShots'
+        - $ref: '#/components/parameters/csMaxHeadShots'
+        - $ref: '#/components/parameters/leagueGameMode'
+        - $ref: '#/components/parameters/leagueClass'
+        - $ref: '#/components/parameters/leagueChampion'
+        - $ref: '#/components/parameters/partnerMetadata'
+      responses:
+        '200':
+          description: Clips returned successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedClipsResponse'
+        '404':
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/defaultResponse'
+      security:
+        - PublicApiKeyAuth: []
+  /user/active:
+    post:
+      operationId: activeUser
+      tags:
+        - User
+      summary: User activity
+      description: Notify system of user activity
+      requestBody:
+        description: User Active Request Body
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/userActiveRequestBody'
+      responses:
+        '200':
+          description: User activity acknowledged
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/userActiveResponse'
+        '404':
+          description: User not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/4XXResponse'
+      security:
+        - ApiKeyAuth: []
+  /cs/clip:
+    get:
+      operationId: getCSClip
+      tags:
+        - Clip
+      summary: Return a specific clip identified by a clip identifier
+      description: Returns a single clip by clip identifier
+      parameters:
+        - $ref: '#/components/parameters/clipIdentifier'
+        - $ref: '#/components/parameters/onDemand'
+        - $ref: '#/components/parameters/inProgress'
+      responses:
+        '200':
+          description: Clip returned successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/clipResponse'
+        '404':
+          description: We did not find the anything
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/4XXResponse'
+      security:
+        - ApiKeyAuth: []
+  /cs/clip/status:
+    get:
+      operationId: getCSClipStatus
+      tags:
+        - Clip
+      summary: Get status of a specific clip
+      description: Returns the status of a single clip by clip identifier
+      parameters:
+        - $ref: '#/components/parameters/clipIdentifier'
+      responses:
+        '200':
+          description: Status of the clip returned successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/statusResponse'
+        '404':
+          description: We did not find the anything
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/4XXResponse'
+      security:
+        - ApiKeyAuth: []
+  /cs/clips:
+    get:
+      operationId: getCSClips
+      tags:
+        - Clip
+      summary: Get a filtered list of CS clips
+      description: Returns a paginated list of clips matching the specified criteria
+      parameters:
+        - $ref: '#/components/parameters/demoUrl'
+        - $ref: '#/components/parameters/optionalSteamId'
+        - $ref: '#/components/parameters/page'
+        - $ref: '#/components/parameters/limit'
+        - $ref: '#/components/parameters/age'
+        - $ref: '#/components/parameters/clipSort'
+        - $ref: '#/components/parameters/minKillCount'
+        - $ref: '#/components/parameters/maxKillCount'
+        - $ref: '#/components/parameters/csMap'
+        - $ref: '#/components/parameters/csWeapon'
+        - $ref: '#/components/parameters/csWeaponCat'
+        - $ref: '#/components/parameters/csSituation'
+        - $ref: '#/components/parameters/csMinHeadShots'
+        - $ref: '#/components/parameters/csMaxHeadShots'
+        - $ref: '#/components/parameters/partnerMetadata'
+        - $ref: '#/components/parameters/onDemand'
+        - $ref: '#/components/parameters/inProgress'
+      responses:
+        '200':
+          description: A successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedClipsResponse'
+        '404':
+          description: We did not find anything
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/defaultResponse'
+      security:
+        - PublicApiKeyAuth: []
+  /cs/clip/pmh:
+    post:
+      operationId: createCSPMHClip
+      tags:
+        - Counter-Strike
+      summary: PMH Use Case for Counter-Strike
+      description: Create a "Post Match Highlight" clip from a CS match, You defined the round to clip in the payload.
+      requestBody:
+        description: CS PMH Clip Request
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/csPMHRequestBody'
+      responses:
+        '200':
+          description: A successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/defaultResponse'
+        '404':
+          description: Invalid request.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/4XXResponse'
+      security:
+        - ApiKeyAuth: []
+  /cs/clip/potg:
+    post:
+      operationId: createCSPOTGClip
+      tags:
+        - Counter-Strike
+      summary: POTG Use Case for CS:GO and CS2
+      description: Create a "Play of the Game" clip from a CS match, We will pick the best play of the entire match using our scoring algorithm. See BP if you want to define the Steam ID to pick.
+      requestBody:
+        description: CS POTG Clip Request
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/csPOTGRequestBody'
+      responses:
+        '200':
+          description: POTG clip request submitted successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/defaultResponse'
+        '404':
+          description: Invalid request.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/4XXResponse'
+      security:
+        - ApiKeyAuth: []
+  /cs/clip/bp:
+    post:
+      operationId: createCSBPClip
+      tags:
+        - Counter-Strike
+      summary: BP Use Case for Counter-Strike
+      description: Create a "Best Play" clip from a CS match, We will pick the best play of the match from the Steam ID in the payload using our scoring algorithm.
+      requestBody:
+        description: CS BP Clip Request
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/csBPRequestBody'
+      responses:
+        '200':
+          description: A successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/defaultResponse'
+        '404':
+          description: Invalid request.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/4XXResponse'
+      security:
+        - ApiKeyAuth: []
+  /cs/clip/pb:
+    post:
+      operationId: createCSPBClip
+      tags:
+        - Counter-Strike
+      summary: PB Use Case for Counter-Strike
+      description: Create a "Priority Bulk" clip from a CS match.
+      requestBody:
+        description: CS PB Clip Request
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/csBPRequestBody'
+      responses:
+        '200':
+          description: A successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/defaultResponse'
+        '404':
+          description: Invalid request.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/4XXResponse'
+      security:
+        - ApiKeyAuth: []
+  /cs/clip/sh:
+    post:
+      operationId: createCSSHClip
+      tags:
+        - Counter-Strike
+      summary: SH Use Case for Counter-Strike
+      description: Create a "Squad Highlight" clip from a CS match
+      requestBody:
+        description: CS SH Clip Request
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/csSHRequestBody'
+      responses:
+        '200':
+          description: A successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/defaultResponse'
+        '404':
+          description: Invalid request.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/4XXResponse'
+      security:
+        - ApiKeyAuth: []
+  /cs/clip/mh:
+    post:
+      operationId: createCSMHClip
+      tags:
+        - Counter-Strike
+      summary: MH Use Case for Counter-Strike
+      description: Create a "Match Highlight" clip from a CS match
+      requestBody:
+        description: CS MH Clip Request
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/csMHRequestBody'
+      responses:
+        '200':
+          description: A successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/defaultResponse'
+        '404':
+          description: Invalid request.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/4XXResponse'
+      security:
+        - ApiKeyAuth: []
+  /league/clip:
+    get:
+      operationId: getLeagueClip
+      tags:
+        - Clip
+      summary: Get a users clip for a specific game
+      description: Returns a single clip by game identifier
+      parameters:
+        - $ref: '#/components/parameters/clipIdentifier'
+        - $ref: '#/components/parameters/onDemand'
+        - $ref: '#/components/parameters/inProgress'
+      responses:
+        '200':
+          description: Clip returned successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/clipResponse'
+        '404':
+          description: We did not find the anything
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/4XXResponse'
+      security:
+        - ApiKeyAuth: []
+  /league/clip/status:
+    get:
+      operationId: getLeagueClipStatus
+      tags:
+        - Clip
+      summary: Get status of a user clip for a specific game
+      description: Returns the status of a single clip by game identifier
+      parameters:
+        - $ref: '#/components/parameters/clipIdentifier'
+      responses:
+        '200':
+          description: Status of the clip returned successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/statusResponse'
+        '404':
+          description: We did not find the anything
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/4XXResponse'
+      security:
+        - ApiKeyAuth: []
+  /league/clips:
+    get:
+      operationId: getLeagueClips
+      tags:
+        - Clip
+      summary: Get a filtered list of League of Legend clips
+      description: Returns paginated clips for the specific game; all filters are optional but some must be used in conjunction with others.
+      parameters:
+        - $ref: '#/components/parameters/matchId'
+        - $ref: '#/components/parameters/region'
+        - $ref: '#/components/parameters/optionalRiotId'
+        - $ref: '#/components/parameters/onDemand'
+        - $ref: '#/components/parameters/inProgress'
+        - $ref: '#/components/parameters/spectating'
+        - $ref: '#/components/parameters/page'
+        - $ref: '#/components/parameters/limit'
+        - $ref: '#/components/parameters/age'
+        - $ref: '#/components/parameters/clipSort'
+        - $ref: '#/components/parameters/minKillCount'
+        - $ref: '#/components/parameters/maxKillCount'
+        - $ref: '#/components/parameters/leagueGameMode'
+        - $ref: '#/components/parameters/leagueClass'
+        - $ref: '#/components/parameters/leagueChampion'
+        - $ref: '#/components/parameters/partnerMetadata'
+      responses:
+        '200':
+          description: A successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedClipsResponse'
+        '404':
+          description: We did not find anything
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/defaultResponse'
+      security:
+        - PublicApiKeyAuth: []
+  /league/register:
+    get:
+      operationId: getLoLUser
+      tags:
+        - League
+      summary: User information on registration of a LoL player
+      description: Returns user details based on the user ID
+      parameters:
+        - $ref: '#/components/parameters/riotId'
+      responses:
+        '200':
+          description: User information returned successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/defaultResponse'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/4XXResponse'
+        '404':
+          description: Indicates that the user is not registered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/4XXResponse'
+      security:
+        - ApiKeyAuth: []
+    post:
+      operationId: registerLoLUser
+      tags:
+        - League
+      summary: Register a user on League Of Legends
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                riotID:
+                  type: string
+                  description: The Riot ID of the user
+                region:
+                  type: string
+                  description: The region of the user
+                  example: NA1
+                  enum:
+                    - NA1
+                    - BR1
+                    - LA1
+                    - LA2
+                    - EUN1
+                    - EUW1
+                    - TR1
+                    - RU
+                    - JP1
+                    - KR
+                    - OC1
+                    - PH2
+                    - SG2
+                    - TH2
+                    - TW2
+                    - VN2
+                    - ME1
+              required:
+                - riotID
+                - region
+      responses:
+        '200':
+          description: User registered successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/defaultResponse'
+        '201':
+          description: Registration settings updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/defaultResponse'
+        '204':
+          description: User is already registered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/defaultResponse'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/4XXResponse'
+      security:
+        - ApiKeyAuth: []
+  /league/spectate:
+    post:
+      operationId: spectateLeaguePlayer
+      tags:
+        - League
+      summary: Spectates the next match for a RiotID
+      description: Once requested we will queue the user to spectate there next match, Use this endpoint once you know the user has entered a game on Riot servers
+      requestBody:
+        description: League Spectate
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/lolSpectate'
+      responses:
+        '200':
+          description: We will spectate the next match
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/defaultResponse'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/4XXResponse'
+        '404':
+          description: Indicates that the user is not registered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/4XXResponse'
+      security:
+        - ApiKeyAuth: []
+  /league/clip/kmh:
+    post:
+      operationId: createLoLKMHClip
+      tags:
+        - League
+      summary: KMH Use Case for League of Legends
+      description: Create a "Key Moment Highlight" clip from a League of Legends match, You defined the game time to clip in the payload.
+      requestBody:
+        description: LoL KMH Clip Request
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/lolKMHRequestBody'
+      responses:
+        '200':
+          description: POTG clip request submitted successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/defaultResponse'
+        '404':
+          description: Invalid request.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/4XXResponse'
+      security:
+        - ApiKeyAuth: []
+  /league/clip/bp:
+    post:
+      operationId: createLoLBPClip
+      tags:
+        - League
+      summary: BP Use Case for League of Legends
+      description: Create a "Best Play" clip from a League of Legends match, We will pick the best play of the match from the Riot ID in the payload using our scoring algorithm.
+      requestBody:
+        description: LoL BP Clip Request
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/lolBPRequestBody'
+      responses:
+        '200':
+          description: POTG clip request submitted successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/defaultResponse'
+        '404':
+          description: Invalid request.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/4XXResponse'
+      security:
+        - ApiKeyAuth: []
+  /league/clip/potg:
+    post:
+      operationId: createLoLPOTGClip
+      tags:
+        - League
+      summary: POTG Use Case for League of Legends
+      description: Create a "Play of the Game" clip from a League of Legends match, We will pick the best play of the entire match using our scoring algorithm. See BP if you want to define the Riot ID to pick.
+      requestBody:
+        description: LoL POTG Clip Request
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/lolPOTGRequestBody'
+      responses:
+        '200':
+          description: POTG clip request submitted successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/defaultResponse'
+        '404':
+          description: Invalid request.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/4XXResponse'
+      security:
+        - ApiKeyAuth: []
+  /fortnite/clip:
+    get:
+      operationId: getForntiteClip
+      tags:
+        - Clip
+      summary: Get a users clip for a specific game
+      description: Returns a single clip by game identifier
+      parameters:
+        - $ref: '#/components/parameters/clipIdentifier'
+        - $ref: '#/components/parameters/onDemand'
+        - $ref: '#/components/parameters/inProgress'
+      responses:
+        '200':
+          description: Clip returned successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/clipResponse'
+        '404':
+          description: We did not find the anything
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/4XXResponse'
+      security:
+        - ApiKeyAuth: []
+  /fortnite/clip/status:
+    get:
+      operationId: getFortniteClipStatus
+      tags:
+        - Clip
+      summary: Get status of a user clip for a specific game
+      description: Returns the status of a single clip by game identifier
+      parameters:
+        - $ref: '#/components/parameters/clipIdentifier'
+      responses:
+        '200':
+          description: Status of the clip returned successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/statusResponse'
+        '404':
+          description: We did not find the anything
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/4XXResponse'
+      security:
+        - ApiKeyAuth: []
+  /fortnite/clips:
+    get:
+      operationId: getFortniteClips
+      tags:
+        - Clip
+      summary: Get a filtered list of Fortnite clips
+      description: Returns a paginated list of clips for the specific game.
+      parameters:
+        - $ref: '#/components/parameters/matchId'
+        - $ref: '#/components/parameters/demoUrl'
+        - $ref: '#/components/parameters/optionalEpicId'
+        - $ref: '#/components/parameters/page'
+        - $ref: '#/components/parameters/limit'
+        - $ref: '#/components/parameters/age'
+        - $ref: '#/components/parameters/clipSort'
+        - $ref: '#/components/parameters/minKillCount'
+        - $ref: '#/components/parameters/maxKillCount'
+        - $ref: '#/components/parameters/fortniteGameMode'
+        - $ref: '#/components/parameters/fortniteWeapon'
+        - $ref: '#/components/parameters/onDemand'
+        - $ref: '#/components/parameters/inProgress'
+        - $ref: '#/components/parameters/partnerMetadata'
+      responses:
+        '200':
+          description: A successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedClipsResponse'
+        '404':
+          description: We did not find anything
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/defaultResponse'
+      security:
+        - PublicApiKeyAuth: []
+  /fortnite/clip/potg:
+    post:
+      operationId: createFortnitePOTGClip
+      tags:
+        - Fortnite
+      summary: POTG Use Case for Fortnite
+      description: Create a "Play of the Game" clip from a Fortnite match, We will pick the best play of the entire match using our scoring algorithm.
+      requestBody:
+        description: Fortnite POTG Clip Request
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/fortnitePOTGRequestBody'
+      responses:
+        '200':
+          description: POTG clip request submitted successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/defaultResponse'
+        '404':
+          description: Invalid request.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/4XXResponse'
+      security:
+        - ApiKeyAuth: []
+  /fortnite/clip/kmh:
+    post:
+      operationId: createFortniteKMHClip
+      tags:
+        - Fortnite
+      summary: KMH Use Case for Fortnite
+      description: Create a clip from a Fortnite match at a specified game time. We will generate a clip starting at the given gameTime.
+      requestBody:
+        description: Fortnite KMH Clip Request
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - matchId
+                - epicId
+                - gameTime
+              properties:
+                matchId:
+                  type: string
+                  description: The unique identifier of the match.
+                  example: '1234567890'
+                epicId:
+                  type: string
+                  description: The Epic Games account ID of the player.
+                  example: '1234567890'
+                gameTime:
+                  type: number
+                  description: The game time in seconds to start the clip.
+                  example: 150.19
+                webhookUrl:
+                  type: string
+                  description: The endpoint to let you know when the clip is ready
+                  example: https://your-webhook.com/url
+      responses:
+        '201':
+          description: KMH clip request submitted successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  requestId:
+                    type: string
+        '400':
+          description: Missing required body or fields.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  requestId:
+                    type: string
+        '403':
+          description: Authentication failed or invalid use case.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  requestId:
+                    type: string
+        '405':
+          description: Method Not Allowed.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+      security:
+        - ApiKeyAuth: []
+  /fortnite/clip/bp:
+    post:
+      operationId: createFortniteBPClip
+      tags:
+        - Fortnite
+      summary: BP Use Case for Fortnite
+      description: Create a clip for the best play from a Fortnite match for the specified epicId
+      requestBody:
+        description: Fortnite BP Clip Request
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - matchId
+                - epicId
+              properties:
+                matchId:
+                  type: string
+                  description: The unique identifier of the match.
+                  example: '1234567890'
+                epicId:
+                  type: string
+                  description: The Epic Games account ID of the player.
+                  example: '1234567890'
+                webhookUrl:
+                  type: string
+                  description: The endpoint to let you know when the clip is ready
+                  example: https://your-webhook.com/url
+      responses:
+        '201':
+          description: BP clip request submitted successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  requestId:
+                    type: string
+        '400':
+          description: Missing required body or fields.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  requestId:
+                    type: string
+        '403':
+          description: Authentication failed or invalid use case.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  requestId:
+                    type: string
+        '405':
+          description: Method Not Allowed.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+      security:
+        - ApiKeyAuth: []
+webhooks:
+  clipSubmitted:
+    post:
+      operationId: clipSubmittedEvent
+      summary: Clip submission notification
+      description: Notification sent before the clip is processed, providing immediate and actionable data about the clip submission.
+      tags:
+        - Webhook Events
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/clipSubmittedEvent'
+      responses:
+        '200':
+          description: Return a 200 status to indicate that the data was received successfully.
+      security: []
+  clipProcessed:
+    post:
+      operationId: clipProcessedEvent
+      summary: Clip processing notification
+      description: Notification sent after the clip has been processed, providing information about the processing result.
+      tags:
+        - Webhook Events
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/clipProcessedEvent'
+      responses:
+        '200':
+          description: Return a 200 status to indicate that the processing notification was received successfully.
+      security: []
+  clipErrored:
+    post:
+      operationId: clipErroredEvent
+      summary: Clip error notification
+      description: Notification sent when an error occurs during clip processing, providing details about the error.
+      tags:
+        - Webhook Events
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/clipErroredEvent'
+      responses:
+        '200':
+          description: Return a 200 status to indicate that the error notification was received successfully.
+      security: []
+components:
+  schemas:
+    userId:
+      type: string
+      description: Steam ID, Object ID, or Riot ID
+    clipId:
+      $ref: '#/components/schemas/clipIdentifier'
+    Clip:
+      type: object
+      description: Represents a video clip, including its properties and metadata.
+      properties:
+        event:
+          type: string
+          enum:
+            - clip
+        _id:
+          type: string
+          description: The unique identifier of the clip.
+        clipUrl:
+          type: string
+          format: uri
+          description: The URL of the video clip.
+        username:
+          type: string
+          description: The username of the user who created the clip.
+        demoUrl:
+          type: string
+          description: The URL of the demo associated with the clip.
+        roundNumber:
+          type: integer
+          description: The round number of the clip.
+        matchId:
+          type: string
+          description: The unique identifier of the match associated with the clip.
+        steamid:
+          type: string
+          description: The Steam ID of the user who created the clip.
+        clipLength:
+          type: integer
+          description: The length of the video clip in seconds.
+        status:
+          type: string
+          description: The status of the clip.
+        clipTitle:
+          type: string
+          description: The title of the video clip.
+        shareId:
+          type: string
+          description: The unique identifier used for sharing the clip.
+        createdDate:
+          type: string
+          format: date-time
+          description: The date and time when the clip was created.
+        updated:
+          type: string
+          format: date-time
+          description: The date and time when the clip was last updated.
+        clipSnapshotURL:
+          type: string
+          format: uri
+          description: The URL of the snapshot image of the clip.
+        clipImageThumbURL:
+          type: string
+          format: uri
+          description: The URL of the thumbnail image of the clip.
+        requestId:
+          type: string
+          description: The unique identifier of the request associated with the clip.
+        metadata:
+          type: array
+          description: Additional data associated with the clip.
+          items:
+            type: object
+            properties:
+              key:
+                type: string
+                description: 'Includes game metadata such as: Champion, Class, Game Mode, Headshots, Kill Count, Map, Match Type, Weapon, Weapons'
+              value:
+                type: string
+    User:
+      type: object
+      properties:
+        _id:
+          type: string
+    Playlist:
+      type: object
+      description: Represents a HTML5 player source object
+      properties:
+        poster:
+          type: string
+        title:
+          type: string
+        duration:
+          type: string
+        sources:
+          type: array
+          items:
+            type: object
+            properties:
+              src:
+                type: string
+              type:
+                type: string
+              res:
+                type: string
+              label:
+                type: string
+    AutomationPayload:
+      type: object
+      description: The automation settings for the user
+      properties:
+        active:
+          type: boolean
+        useCase:
+          type: string
+          oneOf:
+            - enum:
+                - BP
+              description: Create Best Play clips for the user automatically
+            - enum:
+                - WC
+              description: Create Weekly Clips for the user automatically
+        schedule:
+          type: string
+    csBPRequestBody:
+      type: object
+      properties:
+        demoUrl:
+          type: string
+          description: The public reachable demo URL of the game.
+          example: https://your-demo.com/url.dem
+        steamId:
+          type: string
+          description: The Steam ID of the user
+          example: '1234567890'
+        username:
+          type: string
+          description: The username to assign the clip
+          example: Odin
+        webhookUrl:
+          type: string
+          description: The Steam ID of the user
+          example: https://your-webhook.com/url
+        metadata:
+          type: array
+          items:
+            type: object
+            properties:
+              key:
+                type: string
+              value:
+                type: string
+    csPMHRequestBody:
+      type: object
+      properties:
+        demoUrl:
+          type: string
+          description: The public reachable demo URL of the game.
+          example: https://your-demo.com/url.dem
+        steamId:
+          type: string
+          description: The Steam ID of the user
+          example: '1234567890'
+        round:
+          type: integer
+          description: The round number
+          example: 1
+        username:
+          type: string
+          description: The username to assign the clip
+          example: Odin
+        webhookUrl:
+          type: string
+          description: The API endpoint url we send notifications about this request to
+          example: https://your-webhook.com/url
+        metadata:
+          type: array
+          items:
+            type: object
+            properties:
+              key:
+                type: string
+              value:
+                type: string
+        overrides:
+          type: object
+          description: Specify some custom values to be used in the request
+          properties:
+            csStartTick:
+              type: integer
+              description: The tick where the clip should begin
+              example: 100
+            csStopTick:
+              type: integer
+              description: The tick where the clip should end
+              example: 1100
+    csPOTGRequestBody:
+      type: object
+      properties:
+        demoUrl:
+          type: string
+          description: The public reachable demo URL of the game.
+          example: https://your-demo.com/url.dem
+        webhookUrl:
+          type: string
+          description: The Steam ID of the user
+          example: https://your-webhook.com/url
+        metadata:
+          type: array
+          items:
+            type: object
+            properties:
+              key:
+                type: string
+              value:
+                type: string
+    csSHRequestBody:
+      type: object
+      properties:
+        demoUrl:
+          type: string
+          description: The public reachable demo URL of the game.
+          example: https://your-demo.com/url.dem
+        webhookUrl:
+          type: string
+          description: URL to send the webhook notification to after processing.
+          example: https://your-webhook-url.com/notification
+        username:
+          type: string
+          description: The username of the person requesting the squad highlight.
+          example: reload
+        selection:
+          type: object
+          description: Specifies the type of selection for the highlight and the corresponding identifiers.
+          properties:
+            type:
+              type: string
+              description: The type of selection ("team", "custom", "players").
+              enum:
+                - team
+                - custom
+                - players
+            steamId:
+              type: string
+              description: A Steam ID used when "type" is "team".
+              example: '76561198000345029'
+            steamIds:
+              type: array
+              description: A list of Steam IDs used when "type" is "players".
+              items:
+                type: string
+            rounds:
+              type: array
+              description: List of steam IDs and the specific or best rounds for custom type.
+              items:
+                type: object
+                properties:
+                  steamId:
+                    type: string
+                  round:
+                    type: integer
+                    description: Specific round number or -1 for auto selection of best play.
+                    example: -1
+        metadata:
+          type: array
+          items:
+            type: object
+            properties:
+              key:
+                type: string
+              value:
+                type: string
+      required:
+        - demoUrl
+        - webhookUrl
+        - username
+        - selection
+    csMHRequestBody:
+      type: object
+      properties:
+        demoUrl:
+          type: string
+          description: The public reachable demo URL of the game.
+          example: https://your-demo.com/url.dem
+        webhookUrl:
+          type: string
+          description: URL to send the webhook notification to after processing.
+          example: https://your-webhook-url.com/notification
+        username:
+          type: string
+          description: The username of the person requesting the squad highlight.
+          example: reload
+        selection:
+          type: object
+          description: Specifies the type of selection for the highlight and the corresponding identifiers.
+          properties:
+            steamIds:
+              type: array
+              description: A list of Steam IDs.
+              items:
+                type: string
+            rounds:
+              type: array
+              description: List of steam IDs and the specific or best rounds for custom type.
+              items:
+                type: object
+                properties:
+                  steamId:
+                    type: string
+                  round:
+                    type: integer
+                    description: Specific round number or -1 for auto selection of best play.
+                    example: -1
+        metadata:
+          type: array
+          items:
+            type: object
+            properties:
+              key:
+                type: string
+              value:
+                type: string
+      required:
+        - demoUrl
+        - webhookUrl
+        - username
+        - selection
+    lolBPRequestBody:
+      type: object
+      properties:
+        riotID:
+          type: string
+          description: The Riot ID of the player.
+          example: allstar#NA1
+        matchId:
+          type: string
+          description: The match ID.
+          example: '1234567890'
+        region:
+          type: string
+          description: The region the match took place in.
+          example: NA1
+        webhookUrl:
+          type: string
+          description: The endpoint to let you know when the clip is ready
+          example: https://your-webhook.com/url
+        metadata:
+          type: array
+          items:
+            type: object
+            properties:
+              key:
+                type: string
+              value:
+                type: string
+    lolPOTGRequestBody:
+      type: object
+      properties:
+        matchId:
+          type: string
+          description: The match ID
+          example: '1234567890'
+        region:
+          type: string
+          description: The region the match was played on
+          example: NA1
+        webhookUrl:
+          type: string
+          description: The endpoint to let you know when the clip is ready
+          example: https://your-webhook.com/url
+        metadata:
+          type: array
+          items:
+            type: object
+            properties:
+              key:
+                type: string
+              value:
+                type: string
+    lolKMHRequestBody:
+      type: object
+      properties:
+        matchId:
+          type: string
+          description: The match ID
+          example: '1234567890'
+        region:
+          type: string
+          description: The region the match was played on
+          example: NA1
+        riotID:
+          type: string
+          description: The Riot ID of the player
+          example: allstar#NA1
+        gameClock:
+          type: integer
+          description: The game time in seconds
+          example: 1234
+        webhookUrl:
+          type: string
+          description: The endpoint to let you know when the clip is ready
+          example: https://your-webhook.com/url
+        metadata:
+          type: array
+          items:
+            type: object
+            properties:
+              key:
+                type: string
+              value:
+                type: string
+    fortnitePOTGRequestBody:
+      type: object
+      properties:
+        matchId:
+          type: string
+          description: The match ID for the specific match.
+          example: '1234567890'
+        webhookUrl:
+          type: string
+          description: The endpoint to let you know when the clip is ready
+          example: https://your-webhook.com/url
+    userActiveRequesBody:
+      $ref: '#/components/schemas/userActiveRequestBody'
+    PaginatedClipsResponse:
+      type: object
+      properties:
+        message:
+          type: string
+        requestId:
+          type: string
+        data:
+          type: object
+          properties:
+            currentPage:
+              type: integer
+            count:
+              type: integer
+            limit:
+              type: integer
+            clips:
+              type: array
+              items:
+                $ref: '#/components/schemas/Clip'
+    statusResponse:
+      type: object
+      description: Status response for successful operations
+      properties:
+        message:
+          type: string
+        requestId:
+          type: string
+          format: uuid
+        status:
+          type: string
+          oneOf:
+            - enum:
+                - Submitted
+              description: The request has been submitted
+            - enum:
+                - Processed
+              description: The request has been processed
+            - enum:
+                - Queued
+              description: The request is queued
+            - enum:
+                - Error
+              description: The request has encountered an error
+    defaultResponse:
+      type: object
+      properties:
+        message:
+          type: string
+        requestId:
+          type: string
+          format: uuid
+    PlaylistResponse:
+      type: object
+      properties:
+        message:
+          type: string
+        playlist:
+          type: array
+          items:
+            $ref: '#/components/schemas/Playlist'
+    userActiveResponse:
+      type: object
+      properties:
+        message:
+          type: string
+    clipIdentifier:
+      type: string
+      description: Request ID or Share ID
+    4XXResponse:
+      type: object
+      properties:
+        message:
+          type: string
+        requestId:
+          type: string
+          format: uuid
+    userActiveRequestBody:
+      type: object
+      properties:
+        riotID:
+          type: string
+          description: The riotID of the player in question
+          example: allstargg#ASG
+        userId:
+          type: string
+          description: The Allstar userId
+          example: ''
+        steamId:
+          type: string
+          description: The steamId of the user (optional)
+          example: ''
+        event:
+          type: string
+          description: The type of event occurring
+          example: appload
+        location:
+          type: string
+          description: Where in the application the event occurred
+          example: homepage
+    clipResponse:
+      type: object
+      properties:
+        message:
+          type: string
+        data:
+          $ref: '#/components/schemas/Clip'
+    lolSpectate:
+      type: object
+      properties:
+        riotID:
+          type: string
+          description: The Riot ID of the player.
+          example: allstar#NA1
+        region:
+          type: string
+          description: The region the match took place in.
+          example: NA1
+          enum:
+            - NA1
+            - BR1
+            - LA1
+            - LA2
+            - EUN1
+            - EUW1
+            - TR1
+            - RU
+            - JP1
+            - KR
+            - OC1
+            - PH2
+            - SG2
+            - TH2
+            - TW2
+            - VN2
+            - ME1
+    clipSubmittedEvent:
+      type: object
+      properties:
+        event:
+          type: string
+          description: The type of event.
+          example: clip
+        _id:
+          type: string
+          description: The ID of the event.
+          example: 65138fe1b33739000dddbf99
+        clipUrl:
+          type: string
+          format: uri
+          description: The URL of the submitted clip.
+          example: https://allstar.gg/iframe?clip=65138fe1b33739000dddbf99
+        username:
+          type: string
+          description: The username of the submitter.
+          example: aw2some_
+        demoUrl:
+          type: string
+          format: uri
+          description: The URL of the demo associated with the clip.
+          example: http://replay191.valve.net/730/003641568773741215964_0890885418.dem.bz2
+        roundNumber:
+          type: integer
+          description: The round number of the clip.
+          example: 14
+        steamid:
+          type: string
+          description: The Steam ID of the submitter.
+          example: '76561198023185392'
+        clipLength:
+          type: number
+          format: float
+          description: The length of the clip in seconds.
+          example: 14.56
+        status:
+          type: string
+          description: The status of the clip.
+          example: submitted
+          enum:
+            - submitted
+            - processed
+            - error
+        clipTitle:
+          type: string
+          description: The title of the clip.
+          example: AWP 5K on Overpass
+        shareId:
+          type: string
+          description: The share ID of the clip.
+          example: 65138fe1b33739000dddbf99
+        createdDate:
+          type: string
+          format: date-time
+          description: The date and time when the clip was created.
+          example: '2019-12-31T12:00:00.123Z'
+        updated:
+          type: string
+          format: date-time
+          description: The date and time when the clip was last updated.
+          example: '2019-12-31T12:00:00.123Z'
+        clipSnapshotURL:
+          type: string
+          format: uri
+          description: The URL of the snapshot image of the clip.
+          example: https://media.allstar.gg/static/overpass_placeholder.jpg
+        clipImageThumbURL:
+          type: string
+          format: uri
+          description: The URL of the thumbnail image of the clip.
+          example: https://media.allstar.gg/static/overpass_placeholder.jpg
+        requestId:
+          type: string
+          description: The ID of the request associated with the clip.
+          example: 1f5f40eb-9ff6-4326-9195-ed94080c99f9
+        additionalData:
+          type: array
+          items:
+            type: object
+            properties:
+              key:
+                type: string
+                description: The key of the additional data.
+              value:
+                type: string
+                description: The value of the additional data.
+            example:
+              - key: CS_Map
+                value: Overpass
+              - key: CS_Kill Count
+                value: '5'
+              - key: CS_Weapons
+                value: AWP
+              - key: CS_Headshots
+                value: '3'
+    clipProcessedEvent:
+      type: object
+      properties:
+        event:
+          type: string
+          description: The type of event.
+          example: clip
+        _id:
+          type: string
+          description: The unique identifier of the event.
+          example: 65138fe1b33739000dddbf99
+        clipUrl:
+          type: string
+          format: uri
+          description: The URL of the video clip.
+          example: https://allstar.gg/iframe?clip=65138fe1b33739000dddbf99
+        username:
+          type: string
+          description: The username associated with the clip.
+          example: aw2some_
+        demoUrl:
+          type: string
+          format: uri
+          description: The URL of the demo.
+          example: http://replay191.valve.net/730/003641568773741215964_0890885418.dem.bz2
+        roundNumber:
+          type: integer
+          description: The round number of the clip.
+          example: 14
+        steamid:
+          type: string
+          description: The Steam ID associated with the clip.
+          example: '76561198023185392'
+        clipLength:
+          type: number
+          format: float
+          description: The length of the video clip.
+          example: 14.56
+        status:
+          type: string
+          description: The status of the clip.
+          example: processed
+          enum:
+            - submitted
+            - processed
+            - error
+        clipTitle:
+          type: string
+          description: The title of the video clip.
+          example: AWP 5K on Overpass
+        shareId:
+          type: string
+          description: The share ID of the clip.
+          example: 65138fe1b33739000dddbf99
+        createdDate:
+          type: string
+          format: date-time
+          description: The date and time when the clip was created.
+          example: '2019-12-31T12:00:00.123Z'
+        updated:
+          type: string
+          format: date-time
+          description: The date and time when the clip was last updated.
+          example: '2019-12-31T12:00:00.123Z'
+        clipSnapshotURL:
+          type: string
+          format: uri
+          description: The URL of the clip snapshot.
+          example: https://media.allstar.gg/static/overpass_placeholder.jpg
+        clipImageThumbURL:
+          type: string
+          format: uri
+          description: The URL of the clip image thumbnail.
+          example: https://media.allstar.gg/static/overpass_placeholder.jpg
+        requestId:
+          type: string
+          description: The ID of the request associated with the clip.
+          example: 1f5f40eb-9ff6-4326-9195-ed94080c99f9
+        additionalData:
+          type: array
+          items:
+            type: object
+            properties:
+              key:
+                type: string
+                description: The key of the additional data.
+              value:
+                type: string
+                description: The value of the additional data.
+            example:
+              - key: CS_Map
+                value: Overpass
+              - key: CS_Kill Count
+                value: '5'
+              - key: CS_Weapons
+                value: AWP
+              - key: CS_Headshots
+                value: '3'
+    clipErroredEvent:
+      type: object
+      properties:
+        event:
+          type: string
+          description: The type of event.
+          example: clip
+        message:
+          type: string
+          example: Clip processing failed. Gave up on trying to fetch the match file.
+        requestId:
+          type: string
+          format: uuid
+          example: 1f5f40eb-9ff6-4326-9195-ed94080c99f9
+        status:
+          type: string
+          description: The status of the clip.
+          example: error
+          enum:
+            - submitted
+            - processed
+            - error
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      name: X-API-Key
+      in: header
+      description: Security scheme that uses an API key passed in the 'X-API-Key' header.
+    PublicApiKeyAuth:
+      type: apiKey
+      name: X-API-Key
+      in: header
+      description: |
+        Security scheme that uses either a Public API key *or* standard API key passed in the 'X-API-Key' header.
+  parameters:
+    userId:
+      name: userId
+      in: query
+      required: true
+      schema:
+        $ref: '#/components/schemas/userId'
+    clipId:
+      $ref: '#/components/parameters/clipIdentifier'
+    page:
+      name: page
+      in: query
+      required: false
+      schema:
+        type: integer
+        description: The page number you want to get
+    age:
+      name: age
+      description: Time into the past to search; accepts a string representing a time period, e.g. 30m, 3h, 2d, 1m
+      in: query
+      required: false
+      schema:
+        type: string
+    demoUrl:
+      name: demoUrl
+      in: query
+      required: false
+      schema:
+        type: string
+        description: The full downloadable path to the demo file.
+    matchId:
+      name: matchId
+      in: query
+      required: false
+      schema:
+        type: string
+    steamId:
+      name: steamId
+      in: query
+      required: true
+      schema:
+        type: string
+    riotID:
+      $ref: '#/components/parameters/riotId'
+    automation:
+      name: automation
+      in: query
+      required: true
+      schema:
+        type: boolean
+    round:
+      name: round
+      in: query
+      required: true
+      schema:
+        type: integer
+    team:
+      name: team
+      in: query
+      required: true
+      schema:
+        type: string
+    region:
+      name: region
+      in: query
+      required: false
+      description: Required if matchId is also provided
+      schema:
+        type: string
+    game_time:
+      name: game_time
+      in: query
+      required: true
+      schema:
+        type: integer
+    onDemand:
+      name: onDemand
+      in: query
+      required: false
+      schema:
+        type: integer
+      description: If a non-zero integer, the endpoint additionally returns onDemand clips
+    minKillCount:
+      name: minKillCount
+      description: Minimum number of kills
+      in: query
+      required: false
+      schema:
+        type: integer
+    maxKillCount:
+      name: maxKillCount
+      description: Maximum number of kills
+      in: query
+      required: false
+      schema:
+        type: integer
+    filter:
+      $ref: '#/components/parameters/playlistFilter'
+    name:
+      $ref: '#/components/parameters/playlistName'
+    clipIdentifier:
+      name: clip_identifier
+      description: Either a request/track id or a clip_id
+      in: query
+      required: true
+      schema:
+        $ref: '#/components/schemas/clipIdentifier'
+    optionalUserId:
+      name: userId
+      in: query
+      required: false
+      schema:
+        $ref: '#/components/schemas/userId'
+    optionalSteamId:
+      name: steamId
+      in: query
+      required: false
+      schema:
+        type: string
+    optionalRiotId:
+      name: riotID
+      in: query
+      required: false
+      schema:
+        type: string
+    optionalEpicId:
+      name: epicId
+      in: query
+      required: false
+      schema:
+        type: string
+    inProgress:
+      name: inProgress
+      in: query
+      required: false
+      schema:
+        type: integer
+      description: If a non-zero integer, the endpoint additionally returns clips that are being created
+    clipSort:
+      name: sort
+      description: Descending sort key for data set
+      in: query
+      required: false
+      schema:
+        type: array
+        items:
+          type: string
+          enum:
+            - date
+            - score
+            - views
+    spectating:
+      name: spectating
+      in: query
+      required: false
+      schema:
+        type: integer
+      description: If a non-zero integer, the endpoint additionally returns SPECTATE clips
+    limit:
+      name: limit
+      in: query
+      required: false
+      schema:
+        type: integer
+        maximum: 100
+        description: How many results per page to return
+    clipGame:
+      name: game
+      description: Filter clips by game
+      in: query
+      required: false
+      schema:
+        type: array
+        items:
+          type: string
+          enum:
+            - cs
+            - cs2
+            - league
+            - fortnite
+    csMap:
+      name: map
+      description: The map(s) played
+      in: query
+      required: false
+      schema:
+        type: array
+        items:
+          type: string
+          enum:
+            - Inferno
+            - Dust 2
+            - Anubis
+            - Mirage
+            - Vertigo
+            - Ancient
+            - Nuke
+            - Overpass
+            - Office
+      examples:
+        oneMap:
+          summary: Example of a single map
+          value:
+            - Inferno
+        multipleMaps:
+          summary: Example of multiple maps
+          value:
+            - Mirage
+            - Nuke
+    csWeapon:
+      name: weapon
+      description: A weapon used in the match
+      in: query
+      required: false
+      schema:
+        type: array
+        items:
+          type: string
+          enum:
+            - AWP
+            - MP7
+            - AK-47
+            - USP-S
+            - P90
+            - M4A1
+            - MAC-10
+            - Negev
+            - Knife
+            - HE Grenade
+            - MP9
+            - Desert Eagle
+            - Galil AR
+            - Five-SeveN
+            - Glock-18
+            - P2000
+            - M4A4
+            - Tec-9
+            - SSG 08
+            - XM1014
+            - MP5-SD
+            - Incendiary Grenade
+            - FAMAS
+            - Zeus x27
+            - AUG
+            - Nova
+            - Dual Berettas
+            - UMP-45
+            - MAG-7
+            - SG 553
+            - CZ75 Auto
+            - R8 Revolver
+            - PP-Bizon
+            - Sawed-Off
+            - SCAR-20
+            - G3SG1
+            - M249
+      examples:
+        oneMap:
+          summary: Example of a single weapon
+          value:
+            - AWP
+        multipleMaps:
+          summary: Example of multiple weapons
+          value:
+            - AWP
+            - MP7
+    csWeaponCat:
+      name: weaponCat
+      description: A category of weapons used in the match
+      in: query
+      required: false
+      schema:
+        type: array
+        items:
+          type: string
+          enum:
+            - CS_Snipers
+            - CS_SMGS
+            - CS_ARS
+            - CS_Pistols
+            - CS_Special
+            - CS_Grenades
+            - CS_Shotguns
+      examples:
+        oneMap:
+          summary: Example of a single weapon category
+          value:
+            - CS_Snipers
+        multipleMaps:
+          summary: Example of multiple weapon categories
+          value:
+            - CS_SMGS
+            - CS_ARS
+    csSituation:
+      name: situation
+      description: Situation captured in the clip
+      in: query
+      required: false
+      schema:
+        type: array
+        items:
+          type: string
+          enum:
+            - 1 Deag
+            - 1 Tap
+            - 1V1
+            - 1V2
+            - 1V3
+            - 1V4
+            - Ace
+            - Flashed
+            - Jumping
+            - No Scope
+            - Quickscope
+            - Wallbang
+      examples:
+        oneMap:
+          summary: Example of a single situation
+          value:
+            - Ace
+        multipleMaps:
+          summary: Example of multiple weapon categories
+          value:
+            - No Scope
+            - Jumping
+    csMinHeadShots:
+      name: minHeadShots
+      description: Minimum number of headshots
+      in: query
+      required: false
+      schema:
+        type: integer
+    csMaxHeadShots:
+      name: maxHeadShots
+      description: Maximum number of headshots
+      in: query
+      required: false
+      schema:
+        type: integer
+    leagueGameMode:
+      name: mode
+      description: The game mode played
+      in: query
+      required: false
+      schema:
+        type: array
+        items:
+          type: string
+          enum:
+            - ARAM
+            - CLASSIC
+            - CHERRY
+      examples:
+        oneMap:
+          summary: Example of a single mode
+          value:
+            - ARAM
+        multipleMaps:
+          summary: Example of multiple modes
+          value:
+            - CLASSIC
+            - CHERRY
+    leagueClass:
+      name: class
+      description: Champion class
+      in: query
+      required: false
+      schema:
+        type: array
+        items:
+          type: string
+          enum:
+            - Specialist
+            - Burst
+            - Artillery
+            - Vanguard
+            - Juggernaut
+            - Catcher
+            - Skirmisher
+            - Enchanter
+            - Marksman
+            - Assassin
+            - Diver
+            - Battlemage
+            - Warden
+      examples:
+        oneMap:
+          summary: Example of a single class
+          value:
+            - Burst
+        multipleMaps:
+          summary: Example of multiple classes
+          value:
+            - Burst
+            - Catcher
+    leagueChampion:
+      name: champion
+      description: The champion(s) the clip(s) focus on
+      in: query
+      required: false
+      schema:
+        type: array
+        items:
+          type: string
+          enum:
+            - Graves
+            - Lux
+            - Maokai
+            - Aatrox
+            - Morgana
+            - Master Yi
+            - Teemo
+            - Renata Glasc
+            - Xayah
+            - Zed
+            - Riven
+            - Pantheon
+            - Lulu
+            - Sejuani
+            - Yone
+            - Elise
+            - Caitlyn
+            - Nilah
+            - Malzahar
+            - Senna
+            - Veigar
+            - Xerath
+            - Tristana
+            - Zoe
+            - Dr. Mundo
+            - Jinx
+            - Tryndamere
+            - Nautilus
+            - Ezreal
+            - Diana
+            - Rakan
+            - Lillia
+            - Jayce
+            - Kayn
+            - Bel'Veth
+            - Urgot
+            - Amumu
+            - Ivern
+            - Volibear
+            - Kha'Zix
+            - Rell
+            - Nidalee
+            - Kayle
+            - Syndra
+            - Akali
+            - Ashe
+            - Ahri
+            - Fizz
+            - Shaco
+            - Nami
+            - Lucian
+            - Cho'Gath
+            - Twisted Fate
+            - Darius
+            - Seraphine
+            - Viktor
+            - Katarina
+            - Vayne
+            - Irelia
+            - Zac
+            - Kindred
+            - Sivir
+            - Draven
+            - Karma
+            - LeBlanc
+            - Illaoi
+            - Twitch
+            - Yasuo
+            - Evelynn
+            - Sett
+            - Nocturne
+            - Karthus
+            - Malphite
+            - Thresh
+            - Anivia
+            - Kennen
+            - Ekko
+            - Zyra
+            - Kog'Maw
+            - Garen
+            - Mordekaiser
+            - Aurelion Sol
+            - Poppy
+            - Pyke
+            - Renekton
+            - Akshan
+            - Bard
+            - Zeri
+            - Shen
+            - Wukong
+            - Nasus
+            - Shyvana
+            - Rengar
+            - Aphelios
+            - Kai'Sa
+            - Jax
+            - Warwick
+            - Brand
+            - Heimerdinger
+            - Lee Sin
+            - Vex
+            - Samira
+            - Annie
+            - Ornn
+            - Vladimir
+            - Jhin
+            - Singed
+            - Tahm Kench
+            - Sion
+            - Corki
+            - Yuumi
+            - Azir
+            - Qiyana
+            - Gangplank
+            - Skarner
+            - Yorick
+            - Kassadin
+            - Trundle
+            - Gwen
+            - Viego
+            - Taliyah
+            - Varus
+            - Ryze
+            - Neeko
+            - Vel'Koz
+            - Blitzcrank
+            - Ziggs
+            - Swain
+            - Kled
+            - Sona
+            - Rumble
+            - Quinn
+            - Orianna
+            - Nunu & Willump
+            - Miss Fortune
+            - Hecarim
+            - Taric
+            - Alistar
+            - Leona
+            - Janna
+            - Gnar
+            - Galio
+            - Sylas
+            - Vi
+            - Soraka
+            - Rammus
+            - Rek'Sai
+            - Jarvan IV
+            - Gragas
+            - Xin Zhao
+            - Braum
+            - Fiora
+            - Camille
+            - Olaf
+            - Zilean
+            - Udyr
+            - Kalista
+            - Lissandra
+            - Cassiopeia
+            - Talon
+      examples:
+        oneMap:
+          summary: Example of a single champion
+          value:
+            - Gnar
+        multipleMaps:
+          summary: Example of multiple champions
+          value:
+            - Sio
+            - Kled
+    partnerMetadata:
+      name: pmd_sample
+      description: This is a generic prefix for specifying partner provided metadata search criteria; replace sample with the key of your submitted metadata; please note, specifying only metadata as search criteria may impact response times.
+      in: query
+      required: false
+      schema:
+        type: string
+      examples:
+        oneValue:
+          summary: Example of a single metadata value request
+          value: '?pmd_team=teamA'
+        multipleValues:
+          summary: Example of multiple values
+          value: '?pmd_team=teamA&pmd_team=teamB'
+    riotId:
+      name: riotID
+      in: query
+      required: true
+      schema:
+        type: string
+    fortniteGameMode:
+      name: mode
+      description: The game mode played
+      in: query
+      required: false
+      schema:
+        type: array
+        items:
+          type: string
+          enum:
+            - Zero Build - Trios
+            - Zero Build - Duos
+            - Zero Build - Solo
+            - Zero Build - Squads
+            - Squads
+            - Duos
+            - Solo
+            - Trios
+      examples:
+        oneMap:
+          summary: Example of a single mode
+          value:
+            - Solo
+        multipleMaps:
+          summary: Example of multiple modes
+          value:
+            - Duos
+            - Trios
+    fortniteWeapon:
+      name: weapon
+      description: A weapon used in the match
+      in: query
+      required: false
+      schema:
+        type: array
+        items:
+          type: string
+          enum:
+            - Rifle
+            - Grenade Launcher
+            - Shotgun
+            - Sniper
+            - Rocket Launcher
+            - Pistol
+            - SMG
+            - Minigun
+            - MAX
+            - Biplane Gun
+      examples:
+        oneMap:
+          summary: Example of a single weapon
+          value:
+            - Rifle
+        multipleMaps:
+          summary: Example of multiple weapons
+          value:
+            - SMG
+            - MAX
+    playlistFilter:
+      name: filter
+      in: query
+      required: true
+      schema:
+        type: string
+        description: The filter for the playlist
+        enum:
+          - day
+          - week
+    playlistName:
+      name: name
+      in: query
+      required: true
+      schema:
+        type: string
+        description: The name of the playlist
