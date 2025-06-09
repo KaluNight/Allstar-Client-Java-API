@@ -1087,6 +1087,7 @@ components:
           description: The URL of the demo associated with the clip.
         roundNumber:
           type: integer
+          nullable: true
           description: The round number of the clip.
         matchId:
           type: string
@@ -1095,11 +1096,15 @@ components:
           type: string
           description: The Steam ID of the user who created the clip.
         clipLength:
-          type: integer
+          type: number
+          format: float
           description: The length of the video clip in seconds.
         status:
           type: string
           description: The status of the clip.
+        onDemand:
+          type: boolean
+          description: Whether the clip was generated on demand
         clipTitle:
           type: string
           description: The title of the video clip.
@@ -1125,6 +1130,9 @@ components:
         requestId:
           type: string
           description: The unique identifier of the request associated with the clip.
+        views:
+          type: integer
+          description: The number of times the clip has been viewed.
         metadata:
           type: array
           description: Additional data associated with the clip.
@@ -1497,6 +1505,8 @@ components:
               type: integer
             limit:
               type: integer
+            matchId:
+              type: string
             clips:
               type: array
               items:
